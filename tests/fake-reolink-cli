@@ -7,16 +7,84 @@ set -euo pipefail
 args=" $* "
 reply() { printf '%s\n' "$1"; }
 
+# The demo registry lives in a runtime file, so adding and removing cameras sticks
+# for the session. Delete the file to start over.
+registry() {
+  local file=${XDG_RUNTIME_DIR:-/tmp}/reolink-fake-registry.json
+  [[ -s $file ]] || printf '%s\n' '[
+    {"camera":"front-door","host":"192.0.2.41:9000","uid":null,"user":"admin","description":"Demo doorbell","tags":["outdoor"],"disabled":false},
+    {"camera":"garden","host":"192.0.2.42:9000","uid":null,"user":"admin","description":"Demo pan/tilt camera","tags":["outdoor"],"disabled":false},
+    {"camera":"example","host":null,"uid":"0000","user":"admin","description":null,"tags":[],"disabled":true}]' >"$file"
+  printf '%s\n' "$file"
+}
+
+# device add|update|remove NAME [--host H] [--uid U] [--user U] [--description D] [--disabled B] [--password-stdin]
+device_command() {
+  local action="" name="" host="" uid="" user="" description="" disabled="" has_description=0 file
+  while (( $# )); do
+    case $1 in
+      add | update | remove) [[ -z $action ]] && { action=$1; name=$2; shift; } ;;
+      --host) host=$2; shift ;;
+      --uid) uid=$2; shift ;;
+      --user) user=$2; shift ;;
+      --description) description=$2; has_description=1; shift ;;
+      --disabled) disabled=${2:-true}; [[ $disabled == true || $disabled == false ]] && shift || disabled=true ;;
+      --password-stdin) IFS= read -r _ || true ;;
+    esac
+    shift
+  done
+  file=$(registry)
+  local exists
+  exists=$(jq --arg n "$name" 'any(.[]; .camera == $n)' "$file")
+  if [[ $action == add && $exists == true ]] || [[ $action != add && $exists != true ]]; then
+    reply "{\"ok\":false,\"command\":\"device\",\"data\":null,\"error\":{\"message\":\"device $action failed for $name\"}}"
+    exit 1
+  fi
+  case $action in
+    add)
+      jq --arg n "$name" --arg h "$host" --arg u "$uid" --arg user "${user:-admin}" --arg d "$description" \
+        '. + [{camera: $n, host: ($h | select(. != "") // null), uid: ($u | select(. != "") // null), user: $user,
+               description: ($d | select(. != "") // null), tags: [], disabled: false}]' "$file" ;;
+    update)
+      jq --arg n "$name" --arg h "$host" --arg u "$uid" --arg user "$user" --arg d "$description" \
+         --argjson hd "$has_description" --arg dis "$disabled" \
+        'map(if .camera == $n then
+           (if $h != "" then .host = $h | .uid = null else . end)
+           | (if $u != "" then .uid = $u | .host = null else . end)
+           | (if $user != "" then .user = $user else . end)
+           | (if $hd == 1 then .description = ($d | select(. != "") // null) else . end)
+           | (if $dis != "" then .disabled = ($dis == "true") else . end)
+         else . end)' "$file" ;;
+    remove)
+      jq --arg n "$name" 'map(select(.camera != $n))' "$file" ;;
+  esac >"$file.new" && mv "$file.new" "$file"
+  local done=${action%e}ed
+  reply "{\"ok\":true,\"command\":\"device\",\"data\":{\"action\":\"$done\"},\"error\":null}"
+}
+
 case "$args" in
   *" --version "*)
     reply "reolink-cli 0.0.0 (fake)" ;;
   *" gateway status "*)
     reply '{"ok":true,"command":"gateway.status","data":{"addr":"127.0.0.1:9000","listening":true},"error":null}' ;;
   *" device list "*)
-    reply '{"ok":true,"command":"device","data":[
-      {"camera":"front-door","host":"192.0.2.41:9000","description":"Demo doorbell","tags":["outdoor"],"disabled":false},
-      {"camera":"garden","host":"192.0.2.42:9000","description":"Demo pan/tilt camera","tags":["outdoor"],"disabled":false},
-      {"camera":"example","host":null,"uid":"0000","disabled":true}],"error":null}' ;;
+    reply "$(jq -c '{ok: true, command: "device", data: ., error: null}' "$(registry)")" ;;
+  *" device add "* | *" device update "* | *" device remove "*)
+    device_command "$@" ;;
+  *" discover "*)
+    sleep 1
+    reply '{"ok":true,"command":"discover","data":{"count":2,"devices":[
+      {"host":"192.0.2.42:9000","uid":"95270000DEMO0042","mac":"ec:71:db:00:00:42","scopes":["reolink-lan://name/Garden","reolink-lan://hardware/E1%20Pro"]},
+      {"host":"192.0.2.43:9000","uid":"95270000DEMO0043","mac":"ec:71:db:00:00:43","scopes":["reolink-lan://name/Back%20Door","reolink-lan://hardware/Argus%204%20Pro"]}]},"error":null}' ;;
+  *" login "*)
+    # Accepts the password "demo" on stdin, like `--password-stdin`.
+    IFS= read -r password || true
+    if [[ $password == demo ]]; then
+      reply '{"ok":true,"command":"login","data":{"model":"Demo"},"error":null}'
+    else
+      reply '{"ok":false,"command":"login","data":null,"error":{"code":"AUTH_ERROR","message":"login failed: wrong user name or password"}}'
+      exit 1
+    fi ;;
   *" capabilities "*)
     reply '{"ok":true,"command":"capabilities","data":{"ptzMode":"pt","item":{"ptzType":"3"}},"error":null}' ;;
   *" ptz preset list "*)

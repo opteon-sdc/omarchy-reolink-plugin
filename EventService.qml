@@ -77,6 +77,8 @@ Item {
   // Set by `omarchy-shell reolink-events show CAMERA` (a notification click).
   property string focusCamera: ""
   property int focusSerial: 0
+  // Set by `omarchy-shell reolink-events manage`.
+  property int manageSerial: 0
 
   property var hostToCamera: ({})
   property var lastNotified: ({})
@@ -277,6 +279,12 @@ Item {
     }
 
     function clear(): void { root.clear() }
+
+    // Opens the panel on camera management.
+    function manage(): void {
+      root.manageSerial++
+      Quickshell.execDetached(["omarchy-shell", "reolink", "open"])
+    }
 
     // Prints the number of events not seen yet.
     function unseen(): int { return root.unseen }

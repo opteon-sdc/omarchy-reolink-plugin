@@ -26,11 +26,17 @@ Panel {
   property int speed: 24
   property bool namingPreset: false
   property string pendingCamera: ""
+  property bool managing: false
+  // When a manage request arrived; it only applies to a panel that opens right after it.
+  property real manageRequestedAt: 0
+  // With nothing registered, camera management is all the panel can offer.
+  readonly property bool showManager: managing || (svc.loaded && svc.devices.length === 0 && svc.gatewayUp)
 
   readonly property string glyphCamera: String.fromCodePoint(0xF07AE)   // nf-md-cctv
   readonly property string glyphSnap: String.fromCodePoint(0xF0100)     // nf-md-camera
   readonly property string glyphRefresh: String.fromCodePoint(0xF0450)  // nf-md-refresh
   readonly property string glyphClose: String.fromCodePoint(0xF0156)    // nf-md-close
+  readonly property string glyphManage: String.fromCodePoint(0xF0493)   // nf-md-cog
 
   // The shared event service (manifest kind "service"). The shell may create it
   // after this widget, and serviceFor() is not a binding, so look until it is there.
@@ -92,6 +98,8 @@ Panel {
     if (opened) {
       svc.lastError = ""
       namingPreset = false
+      managing = Date.now() - manageRequestedAt < 3000
+      manageRequestedAt = 0
       svc.refresh()
       Qt.callLater(function () { keyCatcher.forceActiveFocus() })
       if (events) events.markSeen()
@@ -107,6 +115,10 @@ Panel {
     function onFocusSerialChanged() {
       root.pendingCamera = root.events.focusCamera
       root.selectDefaultCamera()
+    }
+    function onManageSerialChanged() {
+      if (root.opened) root.managing = true
+      else root.manageRequestedAt = Date.now()
     }
   }
 
@@ -126,6 +138,8 @@ Panel {
     id: svc
     settings: root.settings
     onCamerasChanged: root.selectDefaultCamera()
+    // The event service maps event hosts to camera names from the same registry.
+    onRegistryChanged: if (root.events && root.events.lookupCameras) root.events.lookupCameras()
   }
 
   BarIconButton {
@@ -156,6 +170,7 @@ Panel {
       onCloseRequested: root.close()
       onTabRequested: function (direction) { root.switchPanel(direction) }
       onMoveRequested: function (dx, dy) {
+        if (root.showManager) return
         if (!svc.ptzSupported) { if (dx !== 0) root.cycleCamera(dx); return }
         var h = dx < 0 ? "left" : dx > 0 ? "right" : ""
         var v = dy < 0 ? "up" : dy > 0 ? "down" : ""
@@ -164,6 +179,7 @@ Panel {
       onTextKey: function (t) {
         var key = String(t).toLowerCase()
         if (key === "r") svc.refresh()
+        else if (root.showManager) return
         else if (key === "s") svc.snapshot("main")
         else if (key === "m") root.stream = root.stream === "main" ? "sub" : "main"
         else if (key === "c") root.cycleCamera(1)
@@ -200,7 +216,8 @@ Panel {
                 textFormat: Text.PlainText
                 width: parent.width
                 elide: Text.ElideRight
-                text: root.currentCamera ? root.currentCamera.name : root.tr("title", "Reolink cameras")
+                text: root.showManager ? root.tr("action.manage", "Manage cameras")
+                  : root.currentCamera ? root.currentCamera.name : root.tr("title", "Reolink cameras")
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title
@@ -211,7 +228,7 @@ Panel {
                 width: parent.width
                 elide: Text.ElideRight
                 visible: text !== ""
-                text: root.currentCamera
+                text: root.currentCamera && !root.showManager
                   ? [root.currentCamera.description, root.currentCamera.host].filter(function (x) { return x !== "" }).join("  ·  ")
                   : ""
                 color: root.dim
@@ -221,7 +238,7 @@ Panel {
             }
 
             ButtonGroup {
-              visible: root.currentCamera !== null
+              visible: root.currentCamera !== null && !root.showManager
               options: [
                 { value: "sub", label: root.tr("stream.sub", "Sub") },
                 { value: "main", label: root.tr("stream.main", "Main") }
@@ -234,7 +251,7 @@ Panel {
             }
 
             PanelActionButton {
-              visible: root.currentCamera !== null
+              visible: root.currentCamera !== null && !root.showManager
               iconText: root.glyphSnap
               tooltipText: root.tr("action.snapshot", "Save snapshot (S)")
               foreground: root.foreground
@@ -249,11 +266,32 @@ Panel {
               fontFamily: root.fontFamily
               onClicked: { svc.refresh(); live.reload() }
             }
+
+            PanelActionButton {
+              iconText: root.glyphManage
+              tooltipText: root.tr("action.manage", "Manage cameras")
+              foreground: root.showManager ? root.accentColor : root.foreground
+              fontFamily: root.fontFamily
+              onClicked: { root.managing = !root.managing; keyCatcher.forceActiveFocus() }
+            }
+          }
+
+          CameraManager {
+            visible: root.showManager
+            width: parent.width
+            service: svc
+            translations: strings
+            foreground: root.foreground
+            dim: root.dim
+            urgent: root.urgent
+            accent: root.accentColor
+            fontFamily: root.fontFamily
+            onDoneEditing: keyCatcher.forceActiveFocus()
           }
 
           // Camera picker
           Flow {
-            visible: svc.cameras.length > 1
+            visible: svc.cameras.length > 1 && !root.showManager
             width: parent.width
             spacing: Style.space(6)
             Repeater {
@@ -295,7 +333,7 @@ Panel {
 
           // Video
           Rectangle {
-            visible: root.currentCamera !== null
+            visible: root.currentCamera !== null && !root.showManager
             width: parent.width
             height: Math.round(width * 9 / 16)
             color: "black"
@@ -309,7 +347,7 @@ Panel {
               camera: svc.camera
               stream: root.stream
               fps: root.fps
-              active: root.opened && svc.camera !== "" && svc.gatewayUp
+              active: root.opened && svc.camera !== "" && svc.gatewayUp && !root.showManager
             }
 
             Text {
@@ -342,7 +380,7 @@ Panel {
 
           // PTZ
           Column {
-            visible: svc.ptzSupported && root.currentCamera !== null
+            visible: svc.ptzSupported && root.currentCamera !== null && !root.showManager
             width: parent.width
             spacing: Style.space(8)
 
@@ -508,7 +546,7 @@ Panel {
 
           // Recent events
           Column {
-            visible: root.events !== null && root.events.enabled
+            visible: root.events !== null && root.events.enabled && !root.showManager
             width: parent.width
             spacing: Style.space(6)
 
@@ -606,8 +644,8 @@ Panel {
             width: parent.width
             wrapMode: Text.WordWrap
             text: svc.lastError !== "" ? root.message(svc.lastError)
-              : svc.loaded && svc.cameras.length === 0 && svc.gatewayUp
-                ? root.tr("empty", "No cameras registered. Add one with: reolink-cli device add NAME --host IP --user admin")
+              : svc.loaded && svc.cameras.length === 0 && svc.devices.length > 0 && svc.gatewayUp
+                ? root.tr("empty", "No enabled cameras. Enable one under Manage cameras.")
                 : ""
             color: svc.lastError !== "" ? root.urgent : root.dim
             font.family: root.fontFamily
@@ -618,7 +656,7 @@ Panel {
             textFormat: Text.PlainText
             width: parent.width
             wrapMode: Text.WordWrap
-            visible: root.currentCamera !== null
+            visible: root.currentCamera !== null && !root.showManager
             text: svc.ptzSupported
               ? root.tr("hint.ptz", "Hold an arrow to move · arrow keys nudge · 1–9 presets · S snapshot · M stream · C camera")
               : root.tr("hint.basic", "S snapshot · M stream · C next camera · R refresh")

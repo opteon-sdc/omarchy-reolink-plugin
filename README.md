@@ -20,6 +20,9 @@ Local network only. No cloud account, no browser, no extra server.**
 - **Live view** in a panel that opens from the bar, with sub and main streams
   and an adjustable frame rate. The stream only runs while the panel is open.
 - **Several cameras.** Switch between every camera registered in `reolink-cli`.
+- **Camera setup in the panel.** Search your network, add a camera by IP address
+  or UID, edit, disable or remove one. A new password is checked with a login
+  first and handed to reolink-cli on stdin.
 - **Pan and tilt.** Hold an on-screen arrow to move and let go to stop; even a quick
   click moves the camera a visible step. The arrow
   keys give short nudges, and the speed is adjustable.
@@ -63,8 +66,16 @@ then does three things:
 
 ### Register your cameras
 
-`reolink-cli` keeps the camera list and stores passwords encrypted. Register
-each camera once; the CLI asks for the password without echoing it:
+`reolink-cli` keeps the camera list and stores passwords encrypted. The easiest
+way to register a camera is in the panel: click the camera icon in the bar
+(the panel opens on camera management when none is registered), then
+**Search network** or **+ Add camera**. Enter the camera's address, user and
+password and click **Check and save**: the plugin logs in first and only then
+saves the camera.
+
+<img src="docs/manage.png" alt="Camera management in the panel: the registered cameras with Edit, Disable and Remove, and the Add camera form" width="520">
+
+You can also do it in a terminal; the CLI asks for the password without echoing it:
 
 ```bash
 reolink-cli discover        # find cameras on your LAN
@@ -103,12 +114,13 @@ o.bind("SUPER + ALT + C", "Cameras", "omarchy-shell reolink toggle")
 | **+ Save current position** | Save the current position as a preset |
 | Camera icon, `S` | Save a full-resolution snapshot |
 | Refresh icon, `R` | Reload the camera list and restart the stream |
+| Cog icon | Manage cameras: add, search, edit, enable/disable, remove |
 | Event in the list | Switch to that camera |
 | **Clear** | Empty the events list |
 | `Esc` | Close the panel |
 
 IPC: `omarchy-shell reolink open | close | toggle`, and for events
-`omarchy-shell reolink-events show CAMERA | clear | unseen | list`.
+`omarchy-shell reolink-events show CAMERA | manage | clear | unseen | list`.
 
 ### Events
 
@@ -145,7 +157,8 @@ omarchy bar set io.github.opteon-sdc.reolink defaultCamera living-room
 ```mermaid
 flowchart LR
   subgraph shell["omarchy-shell (Quickshell)"]
-    Panel["Panel.qml<br/>bar icon + panel"] --> Service["Service.qml<br/>cameras, PTZ, presets"]
+    Panel["Panel.qml<br/>bar icon + panel"] --> Service["Service.qml<br/>cameras, PTZ, presets, registry"]
+    Panel --> Manager["CameraManager.qml<br/>add, edit, remove"] --> Service
     Panel --> Live["LiveView.qml"]
     Service --> Queue["CliQueue.qml<br/>one command at a time"]
     Events["EventService.qml<br/>one per shell"] -.->|"events, unseen"| Panel
@@ -178,8 +191,11 @@ flowchart LR
 
 - **Local only.** Everything goes through `reolink-cli` and its gateway on
   `127.0.0.1`. No traffic leaves your network, and there is no telemetry.
-- **Credentials** stay in `reolink-cli`'s encrypted registry. The plugin never
-  sees or stores a password and never puts one on a command line.
+- **Credentials** stay in `reolink-cli`'s encrypted registry. When you add a
+  camera in the panel, the password goes from the field to `reolink-cli` on
+  stdin (`--password-stdin`) and the field is cleared. The plugin never stores a
+  password and never puts one on a command line, in an environment variable or
+  in a file.
 - **Frames are temporary.** Live frames go to a private (`0700`) folder under
   `$XDG_RUNTIME_DIR`, which is RAM-backed. They are deleted when the panel
   closes, and the stream does not run while the panel is closed.
@@ -197,7 +213,8 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 | Symptom | Fix |
 |---|---|
 | "The reolink-cli gateway is not running" | Click **Start gateway**, or run `systemctl --user status reolink-gateway` |
-| No cameras listed | `reolink-cli device list` must list them as enabled; the installer's examples are disabled |
+| No cameras listed | Open the cog menu: a camera may be disabled (the installer's examples are) |
+| "Check and save" fails | The message comes from the camera: check the address, user and password, and that the gateway runs |
 | Stream error "device rejected command" | Check the camera with `reolink-cli --camera NAME info`; a battery camera may be asleep |
 | No events | Check `reolink-cli --camera NAME events query --last 20`; enable detection on the camera |
 | High CPU use | Use the `sub` stream or a lower `fps` |

@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-16
+
+### Added
+
+- **Camera management in the panel.** The cog button (or
+  `omarchy-shell reolink-events manage`) lists every registered camera, with
+  Edit, Enable/Disable and Remove. The panel opens on it when no camera is
+  registered yet.
+- **Search network** runs `reolink-cli discover` and lists the cameras that
+  answer, with name and model; **Add** fills in the form for you.
+- **Add camera** by IP address, `IP:port` or Reolink UID. The password is
+  checked with a login before anything is saved, and goes to reolink-cli on
+  stdin (`--password-stdin`), never on a command line.
+- The fake CLI keeps a demo registry in `$XDG_RUNTIME_DIR` and supports
+  `device add|update|remove`, `discover` and `login` (password `demo`).
+
+### Fixed
+
+- The QML lint in `tests/check.sh` now really resolves the shell's `qs.Commons`
+  and `qs.Ui` modules, so it checks the types the plugin uses.
+
 ## [1.2.0] - 2026-11-16
 
 ### Added
@@ -78,7 +99,8 @@ All notable changes to this project are documented here. The format follows
 - A fake `reolink-cli` for trying the plugin without cameras, static checks,
   and CI.
 
-[Unreleased]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/releases/tag/v1.0.0

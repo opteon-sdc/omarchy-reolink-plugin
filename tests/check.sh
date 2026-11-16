@@ -39,7 +39,7 @@ for f in i18n/*.json; do
 done
 missing=""
 for key in $(grep -ohE 'tr\("[A-Za-z.]+"' ./*.qml | sed -E 's/tr\("//; s/"$//' | sort -u) \
-           $(grep -ohE '"(stream|presets|gateway)\.[a-zA-Z]+"' Service.qml LiveView.qml | tr -d '"' | sort -u); do
+           $(grep -ohE '"(stream|presets|gateway|manage)\.[a-zA-Z]+"' Service.qml LiveView.qml | tr -d '"' | sort -u); do
   jq -e --arg k "$key" 'has($k)' i18n/en.json >/dev/null || missing="$missing $key"
 done
 [[ -z $missing ]] && pass "every key used in QML exists in en.json" || fail "keys missing from en.json:$missing"
@@ -75,6 +75,17 @@ fake=tests/fake-reolink-cli
 "$fake" --output json gateway status | jq -e '.data.listening == true' >/dev/null && pass "gateway status" || fail "gateway status"
 "$fake" --output json --camera garden ptz preset list | jq -e '.data.presets | length > 0' >/dev/null \
   && pass "ptz preset list" || fail "ptz preset list"
+export XDG_RUNTIME_DIR
+XDG_RUNTIME_DIR=$(mktemp -d)
+printf 'demo\n' | "$fake" --output json device add "test cam" --host 192.0.2.50:9000 --user admin --password-stdin \
+  | jq -e '.ok' >/dev/null && "$fake" --output json device list | jq -e 'any(.data[]; .camera == "test cam")' >/dev/null \
+  && "$fake" --output json device remove "test cam" | jq -e '.ok' >/dev/null \
+  && pass "device add and remove" || fail "device add and remove"
+printf 'wrong\n' | "$fake" --output json --host 192.0.2.50:9000 --user admin --password-stdin login >/dev/null \
+  && fail "login accepts a wrong password" || pass "login checks the password from stdin"
+"$fake" --output json discover --timeout-secs 1 | jq -e '.data.devices | length > 0 and all(.[]; has("host"))' >/dev/null \
+  && pass "discover" || fail "discover"
+rm -rf "$XDG_RUNTIME_DIR"
 FAKE_EVENT_INTERVAL=0.2 timeout 5 "$fake" --all-devices events stream --timeout 1 \
   | jq -se 'any(.[]; .eventType == "motion" and .data.status == "MD" and (.device | test(":[0-9]+$")))' >/dev/null \
   && pass "events stream" || fail "events stream"
@@ -91,8 +102,18 @@ shell_dir="${OMARCHY_PATH:-/usr/share/omarchy}/shell"
 lint=$(command -v qmllint || echo /usr/lib/qt6/bin/qmllint)
 if [[ -x $lint && -d $shell_dir/Ui ]]; then
   section "QML lint (with Omarchy shell imports)"
-  # Unqualified access to outer ids is how shell plugins are written; every other warning counts.
-  if out=$("$lint" -I "$shell_dir" ./*.qml 2>&1 | grep -E '^(Warning|Error)' | grep -v '\[unqualified\]'); then
+  # The shell's modules are named qs.Commons and qs.Ui but live in Commons/ and Ui/,
+  # so give qmllint an import path with a qs/ folder that points at them.
+  imports=$(mktemp -d)
+  trap 'rm -rf "$imports"' EXIT
+  mkdir "$imports/qs"
+  for module in "$shell_dir"/*/; do
+    [[ -f $module/qmldir ]] && ln -s "$module" "$imports/qs/$(basename "$module")"
+  done
+  # Unqualified access to outer ids is how shell plugins are written, and qmllint cannot
+  # see into Style's grouped QtObject properties; every other warning counts.
+  if out=$("$lint" -I "$imports" ./*.qml 2>&1 | grep -E '^(Warning|Error)' \
+      | grep -v '\[unqualified\]' | grep -v 'not found on type "QObject"'); then
     fail "qmllint: $out"
   else
     pass "qmllint finds no type or property errors"
