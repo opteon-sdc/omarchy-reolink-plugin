@@ -30,6 +30,28 @@ case "$args" in
     ffmpeg -loglevel error -f lavfi -i "gradients=s=1920x1080:c0=0x1d2b53:c1=0x7e2553:c2=0x008751:speed=0" \
       -frames:v 1 -y "$file"
     reply '{"ok":true,"command":"snapshot","data":{},"error":null}' ;;
+  *" events stream "*)
+    # NDJSON like the real gateway: an event start (status MD), its end, and ambient raw reports.
+    # FAKE_EVENT_INTERVAL sets the seconds between events (default 20).
+    interval=${FAKE_EVENT_INTERVAL:-20}
+    limit=0
+    while (( $# )); do [[ $1 == --timeout ]] && { limit=$2; break; }; shift; done
+    hosts=(192.0.2.41:9000 192.0.2.42:9000)
+    kinds=("motion none" "motion people" "people people" "vehicle vehicle" "dog_cat dog_cat")
+    start=$SECONDS n=0
+    while (( limit == 0 || SECONDS - start < limit )); do
+      sleep "$interval"
+      host=${hosts[n % 2]}
+      read -r type ai <<<"${kinds[n % ${#kinds[@]}]}"
+      ais="[]"; [[ $ai != none ]] && ais="[\"$ai\"]"
+      now=$(date +%s)
+      printf '{"timestamp":%d,"channel":0,"eventType":"%s","device":"%s","data":{"status":"MD","aiType":"%s","aiTypes":%s}}\n' \
+        "$now" "$type" "$host" "$ai" "$ais"
+      printf '{"timestamp":%d,"channel":0,"eventType":"raw.cmd33","device":"%s","data":{}}\n' "$now" "$host"
+      printf '{"timestamp":%d,"channel":0,"eventType":"none","device":"%s","data":{"status":"none","aiType":"none","aiTypes":[]}}\n' \
+        "$((now + 1))" "$host"
+      n=$((n + 1))
+    done ;;
   *" preview capture "*)
     exec ffmpeg -loglevel error -re -f lavfi \
       -i "gradients=s=896x504:rate=15:c0=0x1d2b53:c1=0x7e2553:c2=0x008751:c3=0xffa300:speed=0.015,drawtext=text='%{localtime\:%T}':x=24:y=20:fontsize=28:fontcolor=white" \

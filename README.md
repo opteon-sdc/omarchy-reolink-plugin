@@ -9,7 +9,7 @@ Local network only. No cloud account, no browser, no extra server.**
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Omarchy shell plugin](https://img.shields.io/badge/omarchy-shell%20plugin-8a7fd4)](https://omarchy.org)
 
-<img src="docs/preview.png" alt="The plugin panel open under the bar, showing a demo camera feed, a pan/tilt pad and presets" width="640">
+<img src="docs/preview.png" alt="The plugin panel open under the bar, showing a demo camera feed, a pan/tilt pad, presets and a list of recent events" width="560">
 
 <sub>Shown with the bundled demo camera (<code>tests/fake-reolink-cli</code>).</sub>
 
@@ -25,6 +25,9 @@ Local network only. No cloud account, no browser, no extra server.**
   keys give short nudges, and the speed is adjustable.
 - **Presets.** Jump to one with a click or a key from 1 to 9, save the current
   position under a name, or delete one.
+- **Motion alerts.** Motion and AI detections (person, vehicle, animal, …) from
+  every camera show up as a desktop notification with a snapshot, as a count on
+  the bar icon and in an events list in the panel. Click one to watch that camera.
 - **Snapshots** at full resolution, filed by day under `Pictures/Reolink/YYYY-MM-DD/`, with a
   notification.
 - **Feels like part of Omarchy.** It follows your theme and fonts, uses the
@@ -100,9 +103,19 @@ o.bind("SUPER + ALT + C", "Cameras", "omarchy-shell reolink toggle")
 | **+ Save current position** | Save the current position as a preset |
 | Camera icon, `S` | Save a full-resolution snapshot |
 | Refresh icon, `R` | Reload the camera list and restart the stream |
+| Event in the list | Switch to that camera |
+| **Clear** | Empty the events list |
 | `Esc` | Close the panel |
 
-IPC: `omarchy-shell reolink open | close | toggle`.
+IPC: `omarchy-shell reolink open | close | toggle`, and for events
+`omarchy-shell reolink-events show CAMERA | clear | unseen | list`.
+
+### Events
+
+Cameras report motion and AI detections to the reolink-cli gateway, which must
+be running (`setup` installs it as a user service). Detection must be enabled on
+the camera itself, for example with `reolink-cli --camera NAME detect`, or in
+the Reolink app. Battery cameras only report events while they are awake.
 
 ## Settings
 
@@ -121,6 +134,11 @@ omarchy bar set io.github.opteon-sdc.reolink defaultCamera living-room
 | `panelWidth` | `640` | Panel width in pixels (420–1400) |
 | `cliPath` | `reolink-cli` on `PATH` | Path to `reolink-cli` |
 | `snapshotDir` | `$(xdg-user-dir PICTURES)/Reolink` | Where snapshots are saved, in one folder per day |
+| `events` | `true` | Follow motion and detection events from every camera |
+| `notify` | `true` | Send a desktop notification when an event starts |
+| `notifyImage` | `true` | Attach a fresh snapshot to each notification |
+| `notifyCooldown` | `60` | Seconds between notifications for the same camera and event type |
+| `eventTypes` | `motion,people,vehicle,dog_cat,visitor,package` | Comma-separated; also `face` and `cry` |
 
 ## How it works
 
@@ -130,7 +148,10 @@ flowchart LR
     Panel["Panel.qml<br/>bar icon + panel"] --> Service["Service.qml<br/>cameras, PTZ, presets"]
     Panel --> Live["LiveView.qml"]
     Service --> Queue["CliQueue.qml<br/>one command at a time"]
+    Events["EventService.qml<br/>one per shell"] -.->|"events, unseen"| Panel
   end
+  Events -->|"events stream (NDJSON)"| CLI
+  Events -->|"omarchy-notification-send"| Notify["Notification"]
   Queue -->|"reolink-cli … (JSON)"| CLI["reolink-cli"]
   Live -->|"preview capture | ffmpeg"| Frames[("$XDG_RUNTIME_DIR<br/>f0…f7.jpg + latest.txt")]
   Frames --> Live
@@ -143,6 +164,12 @@ flowchart LR
   elements take turns loading the newest frame, so the picture never flickers.
   Because every frame has its own file name, no image cache can show an old
   picture.
+- **Events.** `EventService` is a shell service, so it runs once however many
+  bars you have. It reads its settings from `shell.json`, runs
+  `reolink-cli --all-devices events stream`, maps each event's `host:port` to the
+  camera name and only counts event starts (`status` `MD`). When the stream
+  stops, for example because the gateway restarts, it reconnects with a growing
+  delay.
 - **Commands** go through `CliQueue`, which runs one `reolink-cli` process at a
   time and parses its JSON output. Because pan/tilt commands run in order, a
   `stop` can never overtake its `move`.
@@ -156,6 +183,9 @@ flowchart LR
 - **Frames are temporary.** Live frames go to a private (`0700`) folder under
   `$XDG_RUNTIME_DIR`, which is RAM-backed. They are deleted when the panel
   closes, and the stream does not run while the panel is closed.
+- **Notification pictures** are kept in the same private folder; only the 20
+  newest are kept, and they disappear when you log out. Turn them off with
+  `notifyImage`.
 - **Untrusted text is plain text.** Camera and preset names come from devices,
   so every `Text` element uses `Text.PlainText`. Values are passed to processes
   as separate arguments and never placed inside shell code.
@@ -169,6 +199,7 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 | "The reolink-cli gateway is not running" | Click **Start gateway**, or run `systemctl --user status reolink-gateway` |
 | No cameras listed | `reolink-cli device list` must list them as enabled; the installer's examples are disabled |
 | Stream error "device rejected command" | Check the camera with `reolink-cli --camera NAME info`; a battery camera may be asleep |
+| No events | Check `reolink-cli --camera NAME events query --last 20`; enable detection on the camera |
 | High CPU use | Use the `sub` stream or a lower `fps` |
 | Anything else | The shell log is in `/run/user/$UID/quickshell/by-id/*/log.log` |
 

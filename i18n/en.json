@@ -22,5 +22,17 @@
   "presets.full": "All preset slots are in use.",
   "empty": "No cameras registered. Add one with: reolink-cli device add NAME --host IP --user admin",
   "hint.ptz": "Hold an arrow to move · arrow keys nudge · 1–9 presets · S snapshot · M stream · C camera",
-  "hint.basic": "S snapshot · M stream · C next camera · R refresh"
+  "hint.basic": "S snapshot · M stream · C next camera · R refresh",
+  "events.header": "EVENTS",
+  "events.clear": "Clear",
+  "events.none": "No events yet. Motion and detections from every camera show up here.",
+  "events.unseen": "New camera events",
+  "event.motion": "Motion",
+  "event.people": "Person",
+  "event.vehicle": "Vehicle",
+  "event.dog_cat": "Animal",
+  "event.face": "Face",
+  "event.visitor": "Visitor",
+  "event.package": "Package",
+  "event.cry": "Crying"
 }

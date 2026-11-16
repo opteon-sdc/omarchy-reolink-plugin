@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.opteon-sdc.reolink",
   "name": "Reolink Live",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "opteon-sdc",
   "license": "MIT",
-  "description": "Live view, pan/tilt, presets and snapshots for Reolink cameras on your LAN, driven by reolink-cli.",
+  "description": "Live view, pan/tilt, presets, snapshots and motion alerts for Reolink cameras on your LAN, driven by reolink-cli.",
   "homepage": "https://github.com/opteon-sdc/omarchy-reolink-plugin",
   "repository": "https://github.com/opteon-sdc/omarchy-reolink-plugin",
   "keywords": [
@@ -15,17 +15,21 @@
     "ptz",
     "live-view",
     "local-first",
-    "reolink-cli"
+    "reolink-cli",
+    "motion-detection",
+    "notifications"
   ],
   "kinds": [
+    "service",
     "bar-widget"
   ],
   "entryPoints": {
+    "service": "EventService.qml",
     "barWidget": "Panel.qml"
   },
   "barWidget": {
     "displayName": "Reolink Live",
-    "description": "Watch your Reolink cameras live, steer pan/tilt cameras, jump to presets and save snapshots.",
+    "description": "Watch your Reolink cameras live, steer pan/tilt cameras, save snapshots and get notified of motion and detections.",
     "category": "Utilities",
     "allowMultiple": false,
     "defaultSection": "right",
@@ -35,7 +39,12 @@
       "fps": 8,
       "panelWidth": 640,
       "cliPath": "",
-      "snapshotDir": ""
+      "snapshotDir": "",
+      "events": true,
+      "notify": true,
+      "notifyImage": true,
+      "notifyCooldown": 60,
+      "eventTypes": "motion,people,vehicle,dog_cat,visitor,package"
     },
     "schema": [
       {
@@ -87,6 +96,44 @@
         "label": "Snapshot folder",
         "description": "Leave empty for ~/Pictures/Reolink.",
         "defaultValue": ""
+      },
+      {
+        "key": "events",
+        "type": "boolean",
+        "label": "Follow camera events",
+        "description": "Show motion and detections from every camera in the panel and on the bar icon.",
+        "defaultValue": true
+      },
+      {
+        "key": "notify",
+        "type": "boolean",
+        "label": "Notify on events",
+        "description": "Send a desktop notification when an event starts.",
+        "defaultValue": true
+      },
+      {
+        "key": "notifyImage",
+        "type": "boolean",
+        "label": "Snapshot in notifications",
+        "description": "Attach a fresh picture from the camera to each notification.",
+        "defaultValue": true
+      },
+      {
+        "key": "notifyCooldown",
+        "type": "integer",
+        "label": "Notification cooldown (seconds)",
+        "description": "At most one notification per camera and event type in this time.",
+        "min": 0,
+        "max": 3600,
+        "step": 10,
+        "defaultValue": 60
+      },
+      {
+        "key": "eventTypes",
+        "type": "string",
+        "label": "Event types",
+        "description": "Comma-separated: motion, people, vehicle, dog_cat, face, visitor, package, cry.",
+        "defaultValue": "motion,people,vehicle,dog_cat,visitor,package"
       }
     ],
     "aliases": [

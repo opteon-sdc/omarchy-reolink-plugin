@@ -75,6 +75,17 @@ fake=tests/fake-reolink-cli
 "$fake" --output json gateway status | jq -e '.data.listening == true' >/dev/null && pass "gateway status" || fail "gateway status"
 "$fake" --output json --camera garden ptz preset list | jq -e '.data.presets | length > 0' >/dev/null \
   && pass "ptz preset list" || fail "ptz preset list"
+FAKE_EVENT_INTERVAL=0.2 timeout 5 "$fake" --all-devices events stream --timeout 1 \
+  | jq -se 'any(.[]; .eventType == "motion" and .data.status == "MD" and (.device | test(":[0-9]+$")))' >/dev/null \
+  && pass "events stream" || fail "events stream"
+
+section "Event types"
+missing=""
+for type in $(grep -oE 'knownTypes: \[[^]]*\]' EventService.qml | grep -oE '"[a-z_]+"' | tr -d '"'); do
+  jq -e --arg k "event.$type" 'has($k)' i18n/en.json >/dev/null || missing="$missing event.$type"
+  grep -qE "^ +($type: 0x|.*, $type: 0x)" EventService.qml || missing="$missing glyph:$type"
+done
+[[ -z $missing ]] && pass "every event type has a label and a glyph" || fail "missing:$missing"
 
 shell_dir="${OMARCHY_PATH:-/usr/share/omarchy}/shell"
 lint=$(command -v qmllint || echo /usr/lib/qt6/bin/qmllint)

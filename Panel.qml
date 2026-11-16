@@ -25,11 +25,29 @@ Panel {
   property string stream: String(setting("stream", "sub")) === "main" ? "main" : "sub"
   property int speed: 24
   property bool namingPreset: false
+  property string pendingCamera: ""
 
   readonly property string glyphCamera: String.fromCodePoint(0xF07AE)   // nf-md-cctv
   readonly property string glyphSnap: String.fromCodePoint(0xF0100)     // nf-md-camera
   readonly property string glyphRefresh: String.fromCodePoint(0xF0450)  // nf-md-refresh
   readonly property string glyphClose: String.fromCodePoint(0xF0156)    // nf-md-close
+
+  // The shared event service (manifest kind "service"). The shell may create it
+  // after this widget, and serviceFor() is not a binding, so look until it is there.
+  property var events: null
+  function findEvents() {
+    if (!events && bar && bar.shell && typeof bar.shell.serviceFor === "function")
+      events = bar.shell.serviceFor(moduleName) || null
+  }
+  Timer {
+    interval: 2000
+    repeat: true
+    running: root.events === null
+    triggeredOnStart: true
+    onTriggered: root.findEvents()
+  }
+  readonly property int unseen: events ? events.unseen : 0
+  readonly property int maxListedEvents: 8
 
   function tr(key, fallback) { return strings.t(key, fallback) }
 
@@ -42,6 +60,12 @@ Panel {
   function selectDefaultCamera() {
     var list = svc.cameras
     if (list.length === 0) { svc.camera = ""; return }
+    // A notification click may ask for a camera before the list has loaded.
+    if (pendingCamera !== "") {
+      var asked = pendingCamera
+      pendingCamera = ""
+      for (var k = 0; k < list.length; k++) if (list[k].name === asked) { svc.camera = asked; return }
+    }
     for (var i = 0; i < list.length; i++) if (list[i].name === svc.camera) return
     var wanted = String(setting("defaultCamera", ""))
     for (var j = 0; j < list.length; j++) if (list[j].name === wanted) { svc.camera = wanted; return }
@@ -70,9 +94,32 @@ Panel {
       namingPreset = false
       svc.refresh()
       Qt.callLater(function () { keyCatcher.forceActiveFocus() })
+      if (events) events.markSeen()
     } else {
       svc.stopNow()
     }
+  }
+
+  // A notification click asks for a camera.
+  Connections {
+    target: root.events
+    ignoreUnknownSignals: true
+    function onFocusSerialChanged() {
+      root.pendingCamera = root.events.focusCamera
+      root.selectDefaultCamera()
+    }
+  }
+
+  function showCamera(camera) {
+    for (var i = 0; i < svc.cameras.length; i++)
+      if (svc.cameras[i].name === camera) { svc.camera = camera; return }
+  }
+
+  function eventTime(ms) {
+    var d = new Date(ms)
+    var today = new Date()
+    var time = Qt.formatTime(d, Qt.locale().timeFormat(Locale.ShortFormat))
+    return d.toDateString() === today.toDateString() ? time : Qt.formatDate(d, Qt.locale().dateFormat(Locale.ShortFormat)) + " " + time
   }
 
   Service {
@@ -86,7 +133,10 @@ Panel {
     anchors.fill: parent
     bar: root.bar
     text: root.glyphCamera
-    tooltipText: ""
+    labelText: root.unseen > 0 ? (root.unseen > 99 ? "99+" : String(root.unseen)) : ""
+    fixedWidth: root.unseen > 0 ? -1 : button.slotSize
+    active: root.unseen > 0
+    tooltipText: root.unseen > 0 ? root.tr("events.unseen", "New camera events") : ""
     onPressed: function (b) { root.toggle() }
   }
 
@@ -451,6 +501,99 @@ Panel {
                       keyCatcher.forceActiveFocus()
                     }
                   }
+                }
+              }
+            }
+          }
+
+          // Recent events
+          Column {
+            visible: root.events !== null && root.events.enabled
+            width: parent.width
+            spacing: Style.space(6)
+
+            RowLayout {
+              width: parent.width
+              spacing: Style.space(8)
+              PanelSectionHeader {
+                Layout.fillWidth: true
+                text: root.tr("events.header", "EVENTS")
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+              }
+              Button {
+                visible: root.events !== null && root.events.events.length > 0
+                text: root.tr("events.clear", "Clear")
+                bordered: true
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onClicked: root.events.clear()
+              }
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              visible: root.events !== null && root.events.events.length === 0
+              width: parent.width
+              wrapMode: Text.WordWrap
+              text: root.events && !root.events.streaming && root.events.streamError !== ""
+                ? root.events.streamError
+                : root.tr("events.none", "No events yet. Motion and detections from every camera show up here.")
+              color: root.events && !root.events.streaming && root.events.streamError !== "" ? root.urgent : root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+
+            Repeater {
+              model: root.events ? root.events.events.slice(0, root.maxListedEvents) : []
+              Rectangle {
+                id: eventRow
+                required property var modelData
+                width: parent.width
+                height: Style.space(30)
+                radius: Style.space(6)
+                color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b,
+                  eventMouse.containsMouse ? 0.12 : modelData.camera === svc.camera ? 0.06 : 0)
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.leftMargin: Style.space(8)
+                  anchors.rightMargin: Style.space(8)
+                  spacing: Style.space(10)
+                  Text {
+                    textFormat: Text.PlainText
+                    text: root.events.glyph(eventRow.modelData.type)
+                    color: root.accentColor
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.icon
+                    Layout.preferredWidth: Style.space(18)
+                  }
+                  Text {
+                    textFormat: Text.PlainText
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: root.events.label(eventRow.modelData.type)
+                      + (eventRow.modelData.count > 1 ? " ×" + eventRow.modelData.count : "")
+                      + "  ·  " + eventRow.modelData.camera
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.body
+                  }
+                  Text {
+                    textFormat: Text.PlainText
+                    text: root.eventTime(eventRow.modelData.time)
+                    color: root.dim
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.bodySmall
+                  }
+                }
+
+                MouseArea {
+                  id: eventMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.showCamera(eventRow.modelData.camera)
                 }
               }
             }

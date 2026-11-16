@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-16
+
+### Added
+
+- **Motion and detection alerts.** A background service (manifest kind
+  `service`) follows `reolink-cli events stream` for every registered camera,
+  once per shell, also with several monitors.
+- Desktop notifications when an event starts, with a fresh snapshot from the
+  camera and a per-camera, per-type cooldown. Clicking one opens the panel on
+  that camera.
+- An unseen-events count on the bar icon. It clears when you open the panel.
+- An **Events** list in the panel, newest first. Click an event to switch to
+  its camera, or **Clear** to empty the list. Repeats of the same event within
+  30 s are merged.
+- Settings `events`, `notify`, `notifyImage`, `notifyCooldown` and `eventTypes`.
+- IPC target `reolink-events` with `show CAMERA`, `clear`, `unseen` and `list`.
+- The fake CLI streams demo events, and the checks cover the event contract and
+  that every event type has a label and an icon.
+
 ## [1.1.0] - 2026-11-16
 
 ### Changed
@@ -59,6 +78,7 @@ All notable changes to this project are documented here. The format follows
 - A fake `reolink-cli` for trying the plugin without cameras, static checks,
   and CI.
 
-[Unreleased]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/opteon-sdc/omarchy-reolink-plugin/releases/tag/v1.0.0

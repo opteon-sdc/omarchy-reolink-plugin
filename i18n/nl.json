@@ -22,5 +22,17 @@
   "presets.full": "Alle presetplaatsen zijn bezet.",
   "empty": "Geen camera's geregistreerd. Voeg er een toe met: reolink-cli device add NAAM --host IP --user admin",
   "hint.ptz": "Houd een pijl ingedrukt om te bewegen · pijltjestoetsen tikken · 1–9 presets · S snapshot · M stream · C camera",
-  "hint.basic": "S snapshot · M stream · C volgende camera · R vernieuwen"
+  "hint.basic": "S snapshot · M stream · C volgende camera · R vernieuwen",
+  "events.header": "GEBEURTENISSEN",
+  "events.clear": "Wissen",
+  "events.none": "Nog geen gebeurtenissen. Beweging en detecties van elke camera verschijnen hier.",
+  "events.unseen": "Nieuwe cameragebeurtenissen",
+  "event.motion": "Beweging",
+  "event.people": "Persoon",
+  "event.vehicle": "Voertuig",
+  "event.dog_cat": "Dier",
+  "event.face": "Gezicht",
+  "event.visitor": "Bezoeker",
+  "event.package": "Pakket",
+  "event.cry": "Huilen"
 }
