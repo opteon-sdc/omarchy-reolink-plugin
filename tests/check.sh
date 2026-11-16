@@ -2,13 +2,16 @@
 # Static checks for the plugin. Runs locally and in CI; needs bash, jq and awk
 # (shellcheck and qmllint are used when installed).
 
+# `cond && pass || fail` is safe here: pass() always returns 0, so fail() only runs when cond fails.
+# shellcheck disable=SC2015
+
 set -uo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root" || exit 1
 
 failures=0
-pass() { printf '  ok    %s\n' "$1"; }
+pass() { printf '  ok    %s\n' "$1"; return 0; }
 fail() { printf '  FAIL  %s\n' "$1"; failures=$((failures + 1)); }
 section() { printf '\n%s\n' "$1"; }
 
