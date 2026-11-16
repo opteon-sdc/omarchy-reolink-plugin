@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.opteon-sdc.reolink",
+  "name": "Reolink Cameras",
+  "version": "1.0.0",
+  "author": "opteon-sdc",
+  "license": "MIT",
+  "description": "Live view, pan/tilt, presets and snapshots for Reolink cameras on your LAN, driven by reolink-cli.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Reolink Cameras",
+    "description": "Watch your Reolink cameras live, steer pan/tilt cameras, jump to presets and save snapshots.",
+    "category": "Utilities",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "defaultCamera": "",
+      "stream": "sub",
+      "fps": 8,
+      "panelWidth": 640,
+      "cliPath": "",
+      "snapshotDir": ""
+    },
+    "schema": [
+      {
+        "key": "defaultCamera",
+        "type": "string",
+        "label": "Default camera",
+        "description": "Name from `reolink-cli device list`. Empty picks the first.",
+        "defaultValue": ""
+      },
+      {
+        "key": "stream",
+        "type": "enum",
+        "label": "Default stream",
+        "options": [
+          "sub",
+          "main"
+        ],
+        "defaultValue": "sub",
+        "description": "sub is lighter on CPU and network; main is full resolution."
+      },
+      {
+        "key": "fps",
+        "type": "integer",
+        "label": "Live frames per second",
+        "min": 1,
+        "max": 15,
+        "step": 1,
+        "defaultValue": 8
+      },
+      {
+        "key": "panelWidth",
+        "type": "integer",
+        "label": "Panel width",
+        "min": 420,
+        "max": 1400,
+        "step": 20,
+        "defaultValue": 640
+      },
+      {
+        "key": "cliPath",
+        "type": "path",
+        "label": "Path to reolink-cli",
+        "description": "Leave empty to find reolink-cli on PATH.",
+        "defaultValue": ""
+      },
+      {
+        "key": "snapshotDir",
+        "type": "path",
+        "label": "Snapshot folder",
+        "description": "Leave empty for ~/Pictures/Reolink.",
+        "defaultValue": ""
+      }
+    ]
+  }
+}

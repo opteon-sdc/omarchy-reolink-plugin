@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: reolink-cli problems
+    url: https://github.com/reolink/reolink-cli/issues
+    about: Problems with the CLI itself, the gateway or camera support
+  - name: Security vulnerability
+    url: https://github.com/opteon-sdc/omarchy-reolink-plugin/security/advisories/new
+    about: Report privately, please do not open a public issue

@@ -1,0 +1,43 @@
+#!/bin/bash
+# omarchy plugin add only copies files; this installs what the plugin needs to run.
+
+set -euo pipefail
+
+need() { command -v "$1" >/dev/null 2>&1; }
+
+if ! need ffmpeg; then
+  omarchy pkg add ffmpeg
+fi
+
+if ! need reolink-cli; then
+  echo "Installing reolink-cli (verified download into ~/.local/bin)..."
+  curl -fsSL https://raw.githubusercontent.com/reolink/reolink-cli/main/install.sh | sh
+fi
+
+cli=$(command -v reolink-cli || echo "$HOME/.local/bin/reolink-cli")
+gateway="$(dirname "$cli")/reolink-gateway"
+[[ -x $gateway ]] || { echo "reolink-gateway not found next to $cli" >&2; exit 1; }
+
+# Run the gateway as a user service so the panel works right after login.
+unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+mkdir -p "$unit_dir"
+cat >"$unit_dir/reolink-gateway.service" <<UNIT
+[Unit]
+Description=reolink-cli local gateway (127.0.0.1:9000)
+After=network-online.target
+
+[Service]
+ExecStart=$gateway --addr 127.0.0.1:9000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+UNIT
+
+systemctl --user daemon-reload
+systemctl --user enable --now reolink-gateway.service
+
+echo
+echo "reolink-gateway is running as a user service."
+echo "Register cameras with: reolink-cli device add <name> --host <ip> --user admin"

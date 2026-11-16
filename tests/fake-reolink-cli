@@ -1,0 +1,40 @@
+#!/bin/bash
+# Stand-in for reolink-cli: two demo cameras with pan/tilt and a synthetic video feed.
+# Try the plugin without hardware by pointing the "Path to reolink-cli" setting here.
+
+set -euo pipefail
+
+args=" $* "
+reply() { printf '%s\n' "$1"; }
+
+case "$args" in
+  *" --version "*)
+    reply "reolink-cli 0.0.0 (fake)" ;;
+  *" gateway status "*)
+    reply '{"ok":true,"command":"gateway.status","data":{"addr":"127.0.0.1:9000","listening":true},"error":null}' ;;
+  *" device list "*)
+    reply '{"ok":true,"command":"device","data":[
+      {"camera":"front-door","host":"192.0.2.41:9000","description":"Demo doorbell","tags":["outdoor"],"disabled":false},
+      {"camera":"garden","host":"192.0.2.42:9000","description":"Demo pan/tilt camera","tags":["outdoor"],"disabled":false},
+      {"camera":"example","host":null,"uid":"0000","disabled":true}],"error":null}' ;;
+  *" capabilities "*)
+    reply '{"ok":true,"command":"capabilities","data":{"ptzMode":"pt","item":{"ptzType":"3"}},"error":null}' ;;
+  *" ptz preset list "*)
+    reply '{"ok":true,"command":"ptz","data":{"channel":0,"maxPresetNum":64,"presets":[{"id":1,"name":"Driveway"},{"id":2,"name":"Gate"},{"id":3,"name":"Terrace"}]},"error":null}' ;;
+  *" ptz "*)
+    reply '{"ok":true,"command":"ptz","data":{"channel":0},"error":null}' ;;
+  *" snapshot "*)
+    file=""
+    while (( $# )); do [[ $1 == --file || $1 == -o ]] && { file=$2; break; }; shift; done
+    [[ -n $file ]] || { echo "fake: snapshot needs --file" >&2; exit 2; }
+    ffmpeg -loglevel error -f lavfi -i "gradients=s=1920x1080:c0=0x1d2b53:c1=0x7e2553:c2=0x008751:speed=0" \
+      -frames:v 1 -y "$file"
+    reply '{"ok":true,"command":"snapshot","data":{},"error":null}' ;;
+  *" preview capture "*)
+    exec ffmpeg -loglevel error -re -f lavfi \
+      -i "gradients=s=896x504:rate=15:c0=0x1d2b53:c1=0x7e2553:c2=0x008751:c3=0xffa300:speed=0.015,drawtext=text='%{localtime\:%T}':x=24:y=20:fontsize=28:fontcolor=white" \
+      -c:v libx264 -preset ultrafast -tune zerolatency -f h264 - ;;
+  *)
+    reply '{"ok":false,"command":"fake","data":null,"error":{"message":"fake reolink-cli: unsupported command"}}'
+    exit 1 ;;
+esac

@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **remove IP addresses, UIDs and serial numbers** from logs before posting.
+        Security issues go through a [private advisory](https://github.com/opteon-sdc/omarchy-reolink-plugin/security/advisories/new) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: camera
+    attributes:
+      label: Camera model and firmware
+      description: From `reolink-cli --camera NAME info` (model and firmware only)
+      placeholder: E1 Pro, v3.1.0.4417
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Plugin version (manifest.json), `reolink-cli --version`, `omarchy version`
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Shell log
+      description: Lines mentioning `reolink` from `/run/user/$UID/quickshell/by-id/*/log.log`
+      render: text
