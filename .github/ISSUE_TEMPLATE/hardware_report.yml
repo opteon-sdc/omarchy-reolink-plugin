@@ -1,0 +1,58 @@
+name: Hardware report
+description: Tell us how the plugin works with your camera, NVR or Home Hub
+labels: [hardware]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Your report adds a row to [docs/hardware.md](https://github.com/opteon-sdc/omarchy-reolink-plugin/blob/main/docs/hardware.md).
+        **Leave out IP addresses, UIDs, serial numbers and passwords.**
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: "`model` and `item_no` from `reolink-cli --camera NAME info`"
+      placeholder: E1 Pro (E Series E330)
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware
+      placeholder: v3.1.0.4417_2412122130
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: reolink-cli and plugin version
+      placeholder: reolink-cli 0.21.0, plugin 1.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection
+      options:
+        - Wi-Fi, direct
+        - Ethernet / PoE, direct
+        - Through an NVR
+        - Through a Home Hub
+        - Battery camera
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works?
+      options:
+        - label: Live view (sub stream)
+        - label: Live view (main stream)
+        - label: Pan/tilt
+        - label: Presets
+        - label: Snapshot
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything that did not work, plus the capabilities output (`ptzMode`) if relevant

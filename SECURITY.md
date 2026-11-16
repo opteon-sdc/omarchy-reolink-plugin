@@ -1,6 +1,6 @@
 # Security policy
 
-This plugin runs inside the long-lived, unsandboxed `omarchy-shell` process,
+Reolink Live runs inside the long-lived, unsandboxed `omarchy-shell` process,
 and it controls cameras on your network. Security reports are taken seriously.
 
 ## Reporting a vulnerability

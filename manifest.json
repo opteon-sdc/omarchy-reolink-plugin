@@ -1,11 +1,22 @@
 {
   "schemaVersion": 1,
   "id": "io.github.opteon-sdc.reolink",
-  "name": "Reolink Cameras",
-  "version": "1.0.0",
+  "name": "Reolink Live",
+  "version": "1.1.0",
   "author": "opteon-sdc",
   "license": "MIT",
   "description": "Live view, pan/tilt, presets and snapshots for Reolink cameras on your LAN, driven by reolink-cli.",
+  "homepage": "https://github.com/opteon-sdc/omarchy-reolink-plugin",
+  "repository": "https://github.com/opteon-sdc/omarchy-reolink-plugin",
+  "keywords": [
+    "reolink",
+    "camera",
+    "cctv",
+    "ptz",
+    "live-view",
+    "local-first",
+    "reolink-cli"
+  ],
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +24,7 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "Reolink Cameras",
+    "displayName": "Reolink Live",
     "description": "Watch your Reolink cameras live, steer pan/tilt cameras, jump to presets and save snapshots.",
     "category": "Utilities",
     "allowMultiple": false,
@@ -77,6 +88,14 @@
         "description": "Leave empty for ~/Pictures/Reolink.",
         "defaultValue": ""
       }
+    ],
+    "aliases": [
+      "camera",
+      "cctv",
+      "reolink",
+      "ptz",
+      "security",
+      "nvr"
     ]
   }
 }

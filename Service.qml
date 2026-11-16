@@ -14,8 +14,6 @@ Item {
   }
 
   readonly property string cli: String(setting("cliPath", "reolink-cli"))
-  readonly property string snapshotDir: String(setting("snapshotDir",
-    (Quickshell.env("XDG_PICTURES_DIR") || Quickshell.env("HOME") + "/Pictures") + "/Reolink"))
 
   // [{ name, host, description, tags }]
   property var cameras: []
@@ -31,8 +29,12 @@ Item {
   property int maxPresets: 0
   property var presets: []
   property bool moving: false
+  property string direction_: ""
+  property string movingCamera: ""
+  property real moveStartedAt: 0
 
   readonly property int moveWatchdogMs: 8000
+  readonly property int minMoveMs: 400
 
   readonly property var directions: ["left", "right", "up", "down", "left-up", "left-down", "right-up", "right-down"]
 
@@ -126,16 +128,40 @@ Item {
   // Hold-to-move: starts a continuous move that runs until stop().
   function move(direction, speed) {
     if (camera === "" || directions.indexOf(direction) < 0) return
+    delayedStop.stop()
+    movingCamera = camera
+    direction_ = direction
+    moveStartedAt = Date.now()
     moving = true
     watchdog.restart()
     ptz.run(["--camera", camera, "ptz", "move", direction, "--speed", String(clampSpeed(speed))], report)
   }
 
+  // A quick click still moves the camera visibly: the stop waits until minMoveMs has passed.
   function stop() {
+    if (!moving) return
+    var left = minMoveMs - (Date.now() - moveStartedAt)
+    if (left > 0) {
+      delayedStop.interval = left
+      delayedStop.restart()
+      return
+    }
+    stopNow()
+  }
+
+  // The stop goes to the camera that is moving, even after the panel switched cameras.
+  function stopNow() {
+    delayedStop.stop()
     watchdog.stop()
-    if (!moving || camera === "") return
+    if (!moving) return
     moving = false
-    ptz.run(["--camera", camera, "ptz", "stop"], report)
+    direction_ = ""
+    ptz.run(["--camera", movingCamera, "ptz", "stop"], report)
+  }
+
+  Timer {
+    id: delayedStop
+    onTriggered: root.stopNow()
   }
 
   // A short pulse, for keyboard nudges.
@@ -152,7 +178,7 @@ Item {
   Timer {
     id: watchdog
     interval: root.moveWatchdogMs
-    onTriggered: root.stop()
+    onTriggered: root.stopNow()
   }
 
   function gotoPreset(id) {
@@ -181,20 +207,44 @@ Item {
     })
   }
 
+  // Saves to <Pictures>/Reolink/YYYY-MM-DD/Reolink-<camera>-YYYY-MM-DD_HH-MM-SS.jpg (local time).
+  readonly property string snapshotScript: [
+    "set -euo pipefail",
+    "base=$4",
+    "if [[ -z $base ]]; then",
+    "  pictures=$(xdg-user-dir PICTURES 2>/dev/null || true)",
+    "  [[ -n $pictures && $pictures != \"$HOME\" ]] || pictures=$HOME/Pictures",
+    "  base=$pictures/Reolink",
+    "fi",
+    "dir=$base/$(date +%F)",
+    "file=$dir/Reolink-$5-$(date +%F_%H-%M-%S).jpg",
+    "mkdir -p \"$dir\"",
+    "out=$(\"$1\" --output json --camera \"$2\" snapshot --stream \"$3\" --file \"$file\" 2>&1) || { printf '%s\\n' \"$out\"; exit 1; }",
+    "jq -cn --arg f \"$file\" '{ok: true, data: {file: $f}}'"
+  ].join("\n")
+
   function snapshot(stream) {
     var cam = camera
-    var stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
-    var file = snapshotDir + "/" + cam.replace(/[^\w.-]/g, "_") + "-" + stamp + ".jpg"
-    info.runRaw(["bash", "-c",
-      "mkdir -p \"$(dirname \"$4\")\" && exec \"$1\" --output json --camera \"$2\" snapshot --stream \"$3\" --file \"$4\"",
-      "reolink", cli, cam, stream === "sub" ? "sub" : "main", file],
+    if (cam === "") return
+    info.runRaw(["bash", "-c", snapshotScript, "reolink-snapshot", cli, cam, stream === "sub" ? "sub" : "main",
+      String(setting("snapshotDir", "")), cam.replace(/[^\w.-]/g, "_")],
       function (ok, data, msg) {
         if (!ok) { root.lastError = msg; return }
-        Quickshell.execDetached(["notify-send", "-a", "Reolink", "-i", file, cam, file])
+        var file = String(data && data.file || "")
+        Quickshell.execDetached(["notify-send", "-a", "Reolink Live", "-i", file, cam, file])
       })
   }
 
-  onCameraChanged: { stop(); loadPtz() }
+  // The on-screen stop key: always sends stop, also after a preset move.
+  function forceStop() {
+    if (camera === "") return
+    movingCamera = movingCamera !== "" && moving ? movingCamera : camera
+    moving = true
+    moveStartedAt = 0
+    stopNow()
+  }
+
+  onCameraChanged: { stopNow(); loadPtz() }
 
   CliQueue { id: info; cli: root.cli }
   CliQueue { id: ptz; cli: root.cli }

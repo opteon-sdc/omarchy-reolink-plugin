@@ -76,9 +76,20 @@ fake=tests/fake-reolink-cli
 "$fake" --output json --camera garden ptz preset list | jq -e '.data.presets | length > 0' >/dev/null \
   && pass "ptz preset list" || fail "ptz preset list"
 
-if command -v qmllint >/dev/null 2>&1 || [[ -x /usr/lib/qt6/bin/qmllint ]]; then
+shell_dir="${OMARCHY_PATH:-/usr/share/omarchy}/shell"
+lint=$(command -v qmllint || echo /usr/lib/qt6/bin/qmllint)
+if [[ -x $lint && -d $shell_dir/Ui ]]; then
+  section "QML lint (with Omarchy shell imports)"
+  # Unqualified access to outer ids is how shell plugins are written; every other warning counts.
+  if out=$("$lint" -I "$shell_dir" ./*.qml 2>&1 | grep -E '^(Warning|Error)' | grep -v '\[unqualified\]'); then
+    fail "qmllint: $out"
+  else
+    pass "qmllint finds no type or property errors"
+  fi
+fi
+
+if [[ -x $lint ]]; then
   section "QML syntax"
-  lint=$(command -v qmllint || echo /usr/lib/qt6/bin/qmllint)
   # The qs.* shell modules only exist inside omarchy-shell, so only syntax errors count here.
   if out=$("$lint" ./*.qml 2>&1 | grep -iE 'syntax error|Expected token|Unexpected token'); then
     fail "qmllint: $out"

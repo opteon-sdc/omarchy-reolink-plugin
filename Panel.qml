@@ -15,6 +15,9 @@ Panel {
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.55)
+  // Resolved here: inside an inline component `Color` does not reach the qs.Commons singleton.
+  readonly property color accentColor: Color.accent
+  readonly property color panelBackground: Color.background
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   readonly property int fps: Math.max(1, Math.min(15, Number(setting("fps", 8)) || 8))
@@ -68,7 +71,7 @@ Panel {
       svc.refresh()
       Qt.callLater(function () { keyCatcher.forceActiveFocus() })
     } else {
-      svc.stop()
+      svc.stopNow()
     }
   }
 
@@ -415,7 +418,7 @@ Panel {
                   fontFamily: root.fontFamily
                   onClicked: {
                     root.namingPreset = true
-                    presetName.text = ""
+                    presetName.clear()
                     Qt.callLater(function () { presetName.forceActiveFocus() })
                   }
                 }
@@ -489,11 +492,13 @@ Panel {
     id: key
     property string dir: ""
     property string glyph: ""
-    readonly property bool held: mouse.pressed && dir !== ""
+    // Lit while pressed and for as long as the camera is still moving this way.
+    readonly property bool held: dir !== "" && (mouse.pressed || (svc.moving && svc.direction_ === dir))
+    property bool flash: false
     width: pad.keySize
     height: pad.keySize
     radius: Style.space(8)
-    color: held ? Color.accent : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, mouse.containsMouse ? 0.16 : 0.08)
+    color: held || flash ? root.accentColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, mouse.containsMouse ? 0.16 : 0.08)
     border.width: 1
     border.color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.18)
 
@@ -501,9 +506,15 @@ Panel {
       textFormat: Text.PlainText
       anchors.centerIn: parent
       text: key.glyph
-      color: key.held ? Color.background : root.foreground
+      color: key.held || key.flash ? root.panelBackground : root.foreground
       font.family: root.fontFamily
       font.pixelSize: key.dir === "" ? Style.font.bodySmall : Style.font.iconLarge
+    }
+
+    Timer {
+      id: flashTimer
+      interval: 400
+      onTriggered: key.flash = false
     }
 
     MouseArea {
@@ -511,7 +522,10 @@ Panel {
       anchors.fill: parent
       hoverEnabled: true
       preventStealing: true
-      onPressed: { if (key.dir !== "") svc.move(key.dir, root.speed); else { svc.moving = true; svc.stop() } }
+      onPressed: {
+        if (key.dir !== "") svc.move(key.dir, root.speed)
+        else { svc.forceStop(); key.flash = true; flashTimer.restart() }
+      }
       onReleased: if (key.dir !== "") svc.stop()
       onCanceled: if (key.dir !== "") svc.stop()
     }

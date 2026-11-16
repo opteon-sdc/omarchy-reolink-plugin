@@ -1,6 +1,6 @@
 <div align="center">
 
-# Reolink Cameras for Omarchy
+# Reolink Live for Omarchy
 
 **Your Reolink cameras in the [Omarchy](https://omarchy.org) bar: live view, pan/tilt, presets and snapshots.
 Local network only. No cloud account, no browser, no extra server.**
@@ -20,11 +20,12 @@ Local network only. No cloud account, no browser, no extra server.**
 - **Live view** in a panel that opens from the bar, with sub and main streams
   and an adjustable frame rate. The stream only runs while the panel is open.
 - **Several cameras.** Switch between every camera registered in `reolink-cli`.
-- **Pan and tilt.** Hold an on-screen arrow to move and let go to stop. The arrow
+- **Pan and tilt.** Hold an on-screen arrow to move and let go to stop; even a quick
+  click moves the camera a visible step. The arrow
   keys give short nudges, and the speed is adjustable.
 - **Presets.** Jump to one with a click or a key from 1 to 9, save the current
   position under a name, or delete one.
-- **Snapshots** at full resolution, saved to `~/Pictures/Reolink`, with a
+- **Snapshots** at full resolution, filed by day under `Pictures/Reolink/YYYY-MM-DD/`, with a
   notification.
 - **Feels like part of Omarchy.** It follows your theme and fonts, uses the
   shell's own panels and keyboard handling, and is translated (English, Dutch).
@@ -92,7 +93,8 @@ o.bind("SUPER + ALT + C", "Cameras", "omarchy-shell reolink toggle")
 |---|---|
 | Camera buttons, `C` | Switch camera |
 | `Sub` / `Main`, `M` | Switch between the light and the full-resolution stream |
-| Hold an on-screen arrow | Pan/tilt until you let go |
+| Hold an on-screen arrow | Pan/tilt until you let go (a short click moves at least 0.4 s) |
+| `■` | Stop immediately |
 | Arrow keys | Short pan/tilt nudge |
 | Preset button, `1`–`9` | Go to a preset |
 | **+ Save current position** | Save the current position as a preset |
@@ -118,7 +120,7 @@ omarchy bar set io.github.opteon-sdc.reolink defaultCamera living-room
 | `fps` | `8` | Live frames per second (1–15) |
 | `panelWidth` | `640` | Panel width in pixels (420–1400) |
 | `cliPath` | `reolink-cli` on `PATH` | Path to `reolink-cli` |
-| `snapshotDir` | `~/Pictures/Reolink` | Where snapshots are saved |
+| `snapshotDir` | `$(xdg-user-dir PICTURES)/Reolink` | Where snapshots are saved, in one folder per day |
 
 ## How it works
 
@@ -170,6 +172,11 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 | High CPU use | Use the `sub` stream or a lower `fps` |
 | Anything else | The shell log is in `/run/user/$UID/quickshell/by-id/*/log.log` |
 
+## Tested hardware
+
+See [docs/hardware.md](docs/hardware.md). Tested a camera that is not listed yet?
+Please [send a hardware report](https://github.com/opteon-sdc/omarchy-reolink-plugin/issues/new?template=hardware_report.yml).
+
 ## Development
 
 ```bash
@@ -185,6 +192,14 @@ omarchy bar set io.github.opteon-sdc.reolink cliPath "$PWD/tests/fake-reolink-cl
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development loop.
+
+## Acknowledgements
+
+Some ideas in 1.1, such as the minimum move time for a quick PTZ click,
+dated snapshot folders and the hardware report, come from
+[rodrix2000/omarchy-reolink-cameras](https://github.com/rodrix2000/omarchy-reolink-cameras)
+(MIT). That plugin talks to the camera's HTTP API directly; Reolink Live builds on
+`reolink-cli`.
 
 ## Disclaimer
 
