@@ -37,6 +37,10 @@ Panel {
   readonly property string glyphRefresh: String.fromCodePoint(0xF0450)  // nf-md-refresh
   readonly property string glyphClose: String.fromCodePoint(0xF0156)    // nf-md-close
   readonly property string glyphManage: String.fromCodePoint(0xF0493)   // nf-md-cog
+  readonly property string glyphBell: String.fromCodePoint(0xF009A)     // nf-md-bell
+  readonly property string glyphBellOff: String.fromCodePoint(0xF009B)  // nf-md-bell_off
+
+  readonly property bool currentMuted: events !== null && currentCamera !== null && events.mutedCameras.indexOf(currentCamera.name) >= 0
 
   // The shared event service (manifest kind "service"). The shell may create it
   // after this widget, and serviceFor() is not a binding, so look until it is there.
@@ -248,6 +252,18 @@ Panel {
               fontFamily: root.fontFamily
               focusable: false
               onChanged: function (v) { root.stream = v }
+            }
+
+            PanelActionButton {
+              visible: root.currentCamera !== null && !root.showManager
+                && root.events !== null && root.events.enabled && root.events.notify
+              iconText: root.currentMuted ? root.glyphBellOff : root.glyphBell
+              tooltipText: root.currentMuted
+                ? root.tr("action.unmute", "Notifications for this camera are off. Click to turn them on.")
+                : root.tr("action.mute", "Turn off notifications for this camera")
+              foreground: root.currentMuted ? root.dim : root.foreground
+              fontFamily: root.fontFamily
+              onClicked: root.events.setMuted(root.currentCamera.name, !root.currentMuted)
             }
 
             PanelActionButton {

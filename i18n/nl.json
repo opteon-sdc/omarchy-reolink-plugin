@@ -6,6 +6,8 @@
   "stream.retry": "Opnieuw",
   "stream.ended": "De stream is gestopt.",
   "action.snapshot": "Snapshot opslaan (S)",
+  "action.mute": "Meldingen voor deze camera uitzetten",
+  "action.unmute": "Meldingen voor deze camera staan uit. Klik om ze aan te zetten.",
   "action.refresh": "Vernieuwen (R)",
   "gateway.down": "De reolink-cli gateway draait niet.",
   "gateway.start": "Gateway starten",

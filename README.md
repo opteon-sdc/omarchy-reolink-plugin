@@ -114,13 +114,14 @@ o.bind("SUPER + ALT + C", "Cameras", "omarchy-shell reolink toggle")
 | **+ Save current position** | Save the current position as a preset |
 | Camera icon, `S` | Save a full-resolution snapshot |
 | Refresh icon, `R` | Reload the camera list and restart the stream |
+| Bell icon | Turn notifications for this camera off or on |
 | Cog icon | Manage cameras: add, search, edit, enable/disable, remove |
 | Event in the list | Switch to that camera |
 | **Clear** | Empty the events list |
 | `Esc` | Close the panel |
 
 IPC: `omarchy-shell reolink open | close | toggle`, and for events
-`omarchy-shell reolink-events show CAMERA | manage | clear | unseen | list`.
+`omarchy-shell reolink-events show CAMERA | mute CAMERA | unmute CAMERA | muted | manage | clear | unseen | list`.
 
 ### Events
 
@@ -150,6 +151,7 @@ omarchy bar set io.github.opteon-sdc.reolink defaultCamera living-room
 | `notify` | `true` | Send a desktop notification when an event starts |
 | `notifyImage` | `true` | Attach a fresh snapshot to each notification |
 | `notifyCooldown` | `60` | Seconds between notifications for the same camera and event type |
+| `mutedCameras` | empty | Comma-separated cameras that send no notifications and do not light up the bar icon; their events still show in the panel |
 | `eventTypes` | `motion,people,vehicle,dog_cat,visitor,package` | Comma-separated; also `face` and `cry` |
 
 ## How it works

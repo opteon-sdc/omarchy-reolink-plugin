@@ -44,6 +44,7 @@
       "notify": true,
       "notifyImage": true,
       "notifyCooldown": 60,
+      "mutedCameras": "",
       "eventTypes": "motion,people,vehicle,dog_cat,visitor,package"
     },
     "schema": [
@@ -127,6 +128,13 @@
         "max": 3600,
         "step": 10,
         "defaultValue": 60
+      },
+      {
+        "key": "mutedCameras",
+        "type": "string",
+        "label": "Muted cameras",
+        "description": "Comma-separated camera names that send no notifications and do not light up the bar icon. Their events still show in the panel. The bell button in the panel toggles this.",
+        "defaultValue": ""
       },
       {
         "key": "eventTypes",

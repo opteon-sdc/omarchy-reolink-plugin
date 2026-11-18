@@ -6,6 +6,8 @@
   "stream.retry": "Retry",
   "stream.ended": "The stream stopped.",
   "action.snapshot": "Save snapshot (S)",
+  "action.mute": "Turn off notifications for this camera",
+  "action.unmute": "Notifications for this camera are off. Click to turn them on.",
   "action.refresh": "Refresh (R)",
   "gateway.down": "The reolink-cli gateway is not running.",
   "gateway.start": "Start gateway",

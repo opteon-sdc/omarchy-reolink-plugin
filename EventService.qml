@@ -63,10 +63,28 @@ Item {
       if (knownTypes.indexOf(wanted[i]) >= 0 && out.indexOf(wanted[i]) < 0) out.push(wanted[i])
     return out.join(",")
   }
+  // Cameras whose events still show up in the panel but send no desktop notification.
+  readonly property var mutedCameras: {
+    var raw = String(setting("mutedCameras", "")).split(",")
+    var out = []
+    for (var i = 0; i < raw.length; i++) {
+      var name = raw[i].trim()
+      if (name !== "" && out.indexOf(name) < 0) out.push(name)
+    }
+    return out
+  }
 
-  // Newest first: [{ key, time, camera, type, count }]
+  // Newest first: [{ key, time, added, camera, type, count }]; `added` is when it arrived here.
   property var events: []
-  property int unseen: 0
+  // When the panel last showed the events. Events from muted cameras are never unseen,
+  // so muting a camera also takes its events off the bar icon's count.
+  property real seenAt: 0
+  readonly property int unseen: {
+    var n = 0
+    for (var i = 0; i < events.length; i++)
+      if (events[i].added > seenAt && mutedCameras.indexOf(events[i].camera) < 0) n++
+    return n
+  }
   readonly property int maxEvents: 50
   // Repeats of the same camera and type within this window update one entry.
   readonly property int mergeSeconds: 30
@@ -95,17 +113,17 @@ Item {
 
   function glyph(type) { return String.fromCodePoint(glyphs[type] || glyphs.motion) }
 
-  function markSeen() { unseen = 0 }
+  function markSeen() { seenAt = Date.now() }
 
   function clear() {
     events = []
-    unseen = 0
+    seenAt = Date.now()
   }
 
   function show(camera) {
     focusCamera = String(camera || "")
     focusSerial++
-    unseen = 0
+    seenAt = Date.now()
   }
 
   // ------------------------------------------------------------ stream
@@ -185,18 +203,33 @@ Item {
     var list = events.slice()
     var top = list.length > 0 ? list[0] : null
     if (top && top.camera === camera && top.type === type && time - top.time < mergeSeconds * 1000) {
-      list[0] = { key: top.key, time: time, camera: camera, type: type, count: top.count + 1 }
+      list[0] = { key: top.key, time: time, added: top.added, camera: camera, type: type, count: top.count + 1 }
     } else {
-      list.unshift({ key: time + ":" + camera + ":" + type, time: time, camera: camera, type: type, count: 1 })
+      list.unshift({ key: time + ":" + camera + ":" + type, time: time, added: Date.now(), camera: camera, type: type, count: 1 })
       if (list.length > maxEvents) list.length = maxEvents
-      unseen = unseen + 1
     }
     events = list
     maybeNotify(camera, type)
   }
 
+  function isMuted(camera) { return mutedCameras.indexOf(String(camera)) >= 0 }
+
+  // Saves the change with `omarchy bar set`, which only touches this key in shell.json.
+  function setMuted(camera, muted) {
+    var name = String(camera || "").trim()
+    if (name === "" || name.indexOf(",") >= 0 || muted === isMuted(name)) return
+    var list = mutedCameras.filter(function (n) { return n !== name })
+    if (muted) list.push(name)
+    var value = list.join(",")
+    // Show the change at once; the file watcher confirms it when shell.json is written.
+    var next = Object.assign({}, settings || {})
+    next.mutedCameras = value
+    settings = next
+    Quickshell.execDetached(["omarchy", "bar", "set", pluginId, "mutedCameras", value])
+  }
+
   function maybeNotify(camera, type) {
-    if (!notify) return
+    if (!notify || isMuted(camera)) return
     var key = camera + "|" + type
     var now = Date.now()
     if (lastNotified[key] && now - lastNotified[key] < cooldown * 1000) return
@@ -279,6 +312,13 @@ Item {
     }
 
     function clear(): void { root.clear() }
+
+    // Stops or resumes desktop notifications for CAMERA; its events still show in the panel.
+    function mute(camera: string): void { root.setMuted(camera, true) }
+    function unmute(camera: string): void { root.setMuted(camera, false) }
+
+    // Prints the muted cameras as JSON.
+    function muted(): string { return JSON.stringify(root.mutedCameras) }
 
     // Opens the panel on camera management.
     function manage(): void {

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Mute a camera.** The bell button in the panel header turns desktop
+  notifications off or on for the camera you are watching. Its events still
+  show in the events list, but no longer light up the bar icon. The list is kept in the new
+  `mutedCameras` setting; from a script use
+  `omarchy-shell reolink-events mute|unmute CAMERA`.
+
 ## [1.3.0] - 2026-11-16
 
 ### Added
